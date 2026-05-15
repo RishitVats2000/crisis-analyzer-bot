@@ -1,7 +1,6 @@
 import os
 from dotenv import load_dotenv
 from langchain_community.document_loaders import TextLoader, PyPDFLoader
-import os
 import glob
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
@@ -9,7 +8,8 @@ from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
-from langchain_core.runnables import RunnablePassthrough
+from langchain_core.runnables import RunnablePassthrough, RunnableParallel
+from langchain_core.messages import HumanMessage, AIMessage
 
 # Load API key from .env
 load_dotenv()
@@ -20,15 +20,13 @@ print("🤖 Crisis Analyzer Bot — Starting up...\n")
 print("📄 Loading crisis data...")
 
 documents = []
-data_folder = "data"  # we'll put all docs in a "data" folder
+data_folder = "data"
 
-# Load all TXT files
 for txt_file in glob.glob(f"{data_folder}/*.txt"):
     print(f"   → Loading {txt_file}")
     loader = TextLoader(txt_file, encoding="utf-8")
     documents.extend(loader.load())
 
-# Load all PDF files
 for pdf_file in glob.glob(f"{data_folder}/*.pdf"):
     print(f"   → Loading {pdf_file}")
     loader = PyPDFLoader(pdf_file)
@@ -36,10 +34,9 @@ for pdf_file in glob.glob(f"{data_folder}/*.pdf"):
 
 if len(documents) == 0:
     print("❌ No documents found in 'data' folder!")
-    print("   Add .txt or .pdf files to the data/ folder and try again.")
     exit()
 
-print(f"✅ Loaded {len(documents)} document chunk(s) from data folder\n")
+print(f"✅ Loaded {len(documents)} document chunk(s)\n")
 
 # ── Step 2: Split into chunks ─────────────────────
 print("✂️  Splitting into chunks...")
@@ -48,7 +45,7 @@ chunks = splitter.split_documents(documents)
 print(f"✅ Created {len(chunks)} chunks\n")
 
 # ── Step 3: Convert chunks to vectors ─────────────
-print("🧠 Creating embeddings (first run takes ~30 sec)...")
+print("🧠 Creating embeddings...")
 embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 vectorstore = FAISS.from_documents(chunks, embeddings)
 retriever = vectorstore.as_retriever(search_kwargs={"k": 6})
@@ -65,6 +62,7 @@ prompt = ChatPromptTemplate.from_template(
     "If comparing crises, use bullet points or clear sections.\n"
     "If the context has partial information, share what's available "
     "and note what's missing — don't refuse to answer entirely.\n\n"
+    "Previous conversation:\n{history}\n\n"
     "Context:\n{context}\n\n"
     "Question: {question}\n\n"
     "Detailed Answer:"
@@ -73,12 +71,19 @@ prompt = ChatPromptTemplate.from_template(
 def format_docs(docs):
     return "\n\n".join(doc.page_content for doc in docs)
 
-# Build chain that returns BOTH answer and source documents
-from langchain_core.runnables import RunnableParallel
+def format_history(history):
+    if not history:
+        return "No previous conversation."
+    formatted = []
+    for msg in history[-6:]:
+        role = "User" if isinstance(msg, HumanMessage) else "Bot"
+        formatted.append(f"{role}: {msg.content}")
+    return "\n".join(formatted)
 
 rag_chain = (
     RunnablePassthrough.assign(
-        context=lambda x: format_docs(retriever.invoke(x["question"]))
+        context=lambda x: format_docs(retriever.invoke(x["question"])),
+        history=lambda x: format_history(x.get("history", []))
     )
     | prompt
     | llm
@@ -90,10 +95,12 @@ chain = RunnableParallel(
     sources=lambda x: retriever.invoke(x["question"])
 )
 
-print("✅ Bot ready!\n")
+# Memory — stores conversation history
+chat_history = []
 
+print("✅ Bot ready!\n")
 print("="*60)
-print("Ask anything about the 2008 financial crisis!")
+print("Ask anything about financial crises!")
 print("Type 'quit' to exit")
 print("="*60)
 
@@ -106,12 +113,18 @@ while True:
         continue
     
     print("\n🔍 Thinking...")
-    result = chain.invoke({"question": question})
+    result = chain.invoke({
+        "question": question,
+        "history": chat_history
+    })
     
-    # Print the answer
     print(f"\n💡 Answer: {result['answer']}")
     
-    # Print unique sources used
+    # Save to memory
+    chat_history.append(HumanMessage(content=question))
+    chat_history.append(AIMessage(content=result['answer']))
+    
+    # Print unique sources
     print("\n📚 Sources used:")
     unique_sources = set()
     for doc in result['sources']:
