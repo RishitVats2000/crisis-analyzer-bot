@@ -1,0 +1,29 @@
+The 2008 Financial Crisis
+
+OVERVIEW
+The 2008 financial crisis was the most severe worldwide economic crisis since the Great Depression of 1929. It began with a crisis in the subprime mortgage market in the United States and developed into a full-blown international banking crisis with the collapse of the investment bank Lehman Brothers on September 15, 2008.
+
+CAUSES
+The crisis had multiple causes. Banks gave loans to people who could not afford to repay them, called subprime mortgages. These loans were bundled into financial products called Mortgage Backed Securities and sold to investors worldwide. Credit rating agencies gave these risky products AAA ratings. When US housing prices fell in 2007, millions of homeowners could not repay their loans. This caused massive losses for banks holding these securities.
+
+EARLY WARNING SIGNS
+Several warning signs preceded the crisis. US house prices doubled between 2000 and 2006, creating a housing bubble. Household debt rose to record levels. Banks took excessive leverage, sometimes 30 to 1. Subprime mortgage approvals increased dramatically from 2004 to 2007. The yield curve inverted in 2006, historically a recession predictor. Bear Stearns hedge funds collapsed in July 2007, an early signal of the crisis.
+
+KEY EVENTS
+August 2007: BNP Paribas froze three funds, marking the start of the crisis.
+March 2008: Bear Stearns collapsed and was acquired by JP Morgan Chase.
+September 15, 2008: Lehman Brothers filed for bankruptcy, the largest in US history.
+September 16, 2008: AIG was bailed out by the US government for $85 billion.
+October 2008: The US passed the Troubled Asset Relief Program (TARP) for $700 billion.
+
+IMPACT
+The crisis caused the Great Recession from 2007 to 2009. Global GDP fell by 0.1% in 2009, the first decline since World War 2. US unemployment rose from 5% to 10%. Global stock markets fell over 50% from their 2007 peaks. Millions of homes were foreclosed in the US. Major banks including Lehman Brothers, Bear Stearns, Washington Mutual, and Northern Rock failed. Government bailouts totaled over $2 trillion globally.
+
+SECTORS MOST AFFECTED
+Banking and finance sector lost the most value, with stocks falling 80% or more. Real estate and construction collapsed. Auto industry required government bailouts in the US. Manufacturing saw sharp declines globally. Insurance companies including AIG required massive government support.
+
+RECOVERY MEASURES
+Central banks slashed interest rates to near zero. The US Federal Reserve created Quantitative Easing programs buying $4.5 trillion in bonds. Governments worldwide launched stimulus packages totaling trillions. Banking regulations were strengthened through Dodd-Frank Act in 2010. Stress tests were introduced for major banks.
+
+LESSONS LEARNED
+The crisis taught important lessons. Financial innovation without regulation creates risk. Banks must hold more capital reserves. Credit ratings can be unreliable. Housing bubbles have severe consequences. Global financial systems are highly interconnected. Government intervention can prevent depression but creates moral hazard.
