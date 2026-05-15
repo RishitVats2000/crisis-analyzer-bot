@@ -1,6 +1,8 @@
 import os
 from dotenv import load_dotenv
-from langchain_community.document_loaders import TextLoader
+from langchain_community.document_loaders import TextLoader, PyPDFLoader
+import os
+import glob
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceEmbeddings
@@ -14,11 +16,30 @@ load_dotenv()
 
 print("🤖 Crisis Analyzer Bot — Starting up...\n")
 
-# ── Step 1: Load the document ─────────────────────
+# ── Step 1: Load ALL documents (TXT + PDF) ────────
 print("📄 Loading crisis data...")
-loader = TextLoader("crisis-2008.txt", encoding="utf-8")
-documents = loader.load()
-print(f"✅ Loaded {len(documents)} document(s)\n")
+
+documents = []
+data_folder = "data"  # we'll put all docs in a "data" folder
+
+# Load all TXT files
+for txt_file in glob.glob(f"{data_folder}/*.txt"):
+    print(f"   → Loading {txt_file}")
+    loader = TextLoader(txt_file, encoding="utf-8")
+    documents.extend(loader.load())
+
+# Load all PDF files
+for pdf_file in glob.glob(f"{data_folder}/*.pdf"):
+    print(f"   → Loading {pdf_file}")
+    loader = PyPDFLoader(pdf_file)
+    documents.extend(loader.load())
+
+if len(documents) == 0:
+    print("❌ No documents found in 'data' folder!")
+    print("   Add .txt or .pdf files to the data/ folder and try again.")
+    exit()
+
+print(f"✅ Loaded {len(documents)} document chunk(s) from data folder\n")
 
 # ── Step 2: Split into chunks ─────────────────────
 print("✂️  Splitting into chunks...")
@@ -30,7 +51,7 @@ print(f"✅ Created {len(chunks)} chunks\n")
 print("🧠 Creating embeddings (first run takes ~30 sec)...")
 embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 vectorstore = FAISS.from_documents(chunks, embeddings)
-retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
+retriever = vectorstore.as_retriever(search_kwargs={"k": 6})
 print("✅ Vector database ready\n")
 
 # ── Step 4: Set up the LLM ────────────────────────
@@ -39,21 +60,34 @@ llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash-lite", temperature=0.3)
 
 # ── Step 5: Build the prompt and chain ────────────
 prompt = ChatPromptTemplate.from_template(
-    "You are a financial crisis expert. Answer the question based ONLY on the context below. "
-    "If the answer isn't in the context, say 'I don't have that information.'\n\n"
+    "You are a financial crisis expert analyzing historical economic crises.\n"
+    "Use the context below to provide a detailed, well-structured answer.\n"
+    "If comparing crises, use bullet points or clear sections.\n"
+    "If the context has partial information, share what's available "
+    "and note what's missing — don't refuse to answer entirely.\n\n"
     "Context:\n{context}\n\n"
     "Question: {question}\n\n"
-    "Answer:"
+    "Detailed Answer:"
 )
 
 def format_docs(docs):
     return "\n\n".join(doc.page_content for doc in docs)
 
-chain = (
-    {"context": retriever | format_docs, "question": RunnablePassthrough()}
+# Build chain that returns BOTH answer and source documents
+from langchain_core.runnables import RunnableParallel
+
+rag_chain = (
+    RunnablePassthrough.assign(
+        context=lambda x: format_docs(retriever.invoke(x["question"]))
+    )
     | prompt
     | llm
     | StrOutputParser()
+)
+
+chain = RunnableParallel(
+    answer=rag_chain,
+    sources=lambda x: retriever.invoke(x["question"])
 )
 
 print("✅ Bot ready!\n")
@@ -72,5 +106,17 @@ while True:
         continue
     
     print("\n🔍 Thinking...")
-    answer = chain.invoke(question)
-    print(f"\n💡 Answer: {answer}")
+    result = chain.invoke({"question": question})
+    
+    # Print the answer
+    print(f"\n💡 Answer: {result['answer']}")
+    
+    # Print unique sources used
+    print("\n📚 Sources used:")
+    unique_sources = set()
+    for doc in result['sources']:
+        source = doc.metadata.get('source', 'Unknown')
+        unique_sources.add(source)
+    
+    for i, source in enumerate(unique_sources, 1):
+        print(f"   {i}. {source}")
